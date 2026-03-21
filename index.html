@@ -136,20 +136,34 @@
     gap: 24px;
   }
 
-  #setup-screen .ascii-art {
-    font-family: var(--font-display);
-    font-size: 16px;
-    color: var(--green-dim);
+  #setup-screen .intro-box {
+    border: 1px solid var(--green-dim);
+    padding: 24px 32px;
     text-align: center;
-    line-height: 1.2;
-    white-space: pre;
+    max-width: 420px;
+    width: 90vw;
+  }
+
+  #setup-screen .intro-title {
+    font-family: var(--font-display);
+    font-size: 22px;
+    color: var(--green);
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+    text-shadow: 0 0 10px var(--green-glow);
+  }
+
+  #setup-screen .intro-status {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--green-dim);
+    line-height: 1.8;
+    text-align: left;
+    display: inline-block;
   }
 
   #setup-screen label {
-    font-size: 12px;
-    color: var(--text-dim);
-    letter-spacing: 1px;
-    text-transform: uppercase;
+    display: none;
   }
 
   #api-key-input {
@@ -396,27 +410,22 @@
 
   <!-- HEADER -->
   <div id="header">
-    <h1>TURING, THE CREATOR</h1>
+    <h1>TURING TEST</h1>
     <div class="subtitle">Terminal v1.0 &mdash; Two respondents. One question. Who is real?</div>
   </div>
 
   <!-- SETUP SCREEN -->
   <div id="setup-screen">
-    <div class="ascii-art">
- ╔══════════════════════════════════════╗
- ║   GINNI AND YANN AWAIT YOUR INQUIRY  ║
- ║                                      ║
- ║   [GINNI] ████████░░  STANDBY        ║
- ║   [YANN]  ████████░░  STANDBY        ║
- ║                                      ║
- ║   ENTER API KEY TO INITIALIZE        ║
- ╚══════════════════════════════════════╝
+    <div class="intro-box">
+      <div class="intro-title">TWO SUBJECTS AWAIT YOUR INQUIRY</div>
+      <div class="intro-status">
+        <span class="sender-ginni">[GINNI]</span> ████████░░ STANDBY<br>
+        <span class="sender-yann">[YANN]</span>&nbsp; ████████░░ STANDBY
+      </div>
     </div>
-    <label for="api-key-input">Anthropic API Key</label>
-    <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
     <button id="connect-btn">Initialize Session</button>
     <div class="setup-hint">
-      Your key is stored in memory only and never leaves your browser except to call the Anthropic API directly. It is discarded when you close the tab.
+      Ask questions to two respondents. Can you tell who's real?
     </div>
   </div>
 
@@ -441,10 +450,10 @@
 
 <script>
 // ─── CONFIG ───
-const API_URL = 'https://api.anthropic.com/v1/messages';
+// Point this to your Cloudflare Worker URL after deploying it
+const WORKER_URL = 'https://rough-river-bae3.max-349.workers.dev/';
 const MODEL = 'claude-sonnet-4-20250514';
 
-let apiKey = '';
 let conversationHistory = []; // shared log for context
 let messageCount = 0;
 let isProcessing = false;
@@ -499,14 +508,10 @@ const chatLog = document.getElementById('chat-log');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 const connectBtn = document.getElementById('connect-btn');
-const apiKeyInput = document.getElementById('api-key-input');
 const msgCounter = document.getElementById('msg-counter');
 
 // ─── INIT ───
 connectBtn.addEventListener('click', initSession);
-apiKeyInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') initSession();
-});
 
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keydown', (e) => {
@@ -517,13 +522,6 @@ userInput.addEventListener('keydown', (e) => {
 });
 
 function initSession() {
-  const key = apiKeyInput.value.trim();
-  if (!key) {
-    apiKeyInput.style.borderColor = '#ff3333';
-    setTimeout(() => apiKeyInput.style.borderColor = '', 1000);
-    return;
-  }
-  apiKey = key;
   setupScreen.style.display = 'none';
   chatScreen.classList.add('active');
   userInput.focus();
@@ -588,15 +586,12 @@ function scrollToBottom() {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-// ─── API CALL ───
+// ─── API CALL (via Cloudflare Worker proxy) ───
 async function callClaude(systemPrompt, messages) {
-  const resp = await fetch(API_URL, {
+  const resp = await fetch(WORKER_URL, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       model: MODEL,
